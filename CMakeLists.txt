@@ -21,6 +21,7 @@ MESSAGE("OCC-Include-Dir: ${OpenCASCADE_INCLUDE_DIR}")
 link_directories(${OpenCASCADE_LIBRARY_DIR})
 MESSAGE("OCC-Lib-Dir-Dir: ${OpenCASCADE_LIBRARY_DIR}")
 
+
 set(PROJECT_SOURCES
         src/main.cpp
         src/ICP.cpp
@@ -30,5 +31,5 @@ set(PROJECT_SOURCES
 add_executable(cadcam
     ${PROJECT_SOURCES}
 )
-
+target_link_libraries(cadcam TKMesh TKSTEP TKSTL TKXSBase TKernel)
 
