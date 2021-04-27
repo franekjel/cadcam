@@ -21,6 +21,8 @@ MESSAGE("OCC-Include-Dir: ${OpenCASCADE_INCLUDE_DIR}")
 link_directories(${OpenCASCADE_LIBRARY_DIR})
 MESSAGE("OCC-Lib-Dir-Dir: ${OpenCASCADE_LIBRARY_DIR}")
 
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+
 
 set(PROJECT_SOURCES
         src/main.cpp
@@ -31,5 +33,10 @@ set(PROJECT_SOURCES
 add_executable(cadcam
     ${PROJECT_SOURCES}
 )
-target_link_libraries(cadcam TKMesh TKSTEP TKSTL TKXSBase TKernel)
+
+set(CASCADE_LIBS
+    TKBinL TKFeat TKMesh TKSTEPAttr TKXCAF TKMeshVS TKSTEPBase TKBin TKFillet TKXDEDRAW TKBinTObj TKG2d TKOffset TKSTEP TKXDEIGES TKBinXCAF TKG3d TKOpenGl TKSTL TKXDESTEP TKTObjDRAW TKXMesh TKBool TKGeomAlgo TKPrim TKBO TKGeomBase TKQADraw TKTObj TKXmlL TKRWMesh TKTopAlgo TKXml TKBRep TKHLR TKCAF TKIGES TKService TKTopTest TKXmlTObj TKCDF TKShHealing TKV3d TKDCAF TKStdL TKVCAF TKXSBase TKLCAF TKViewerTest TKXSDRAW TKStd TKernel TKMath TKSTEP209 TKVRML
+)
+
+target_link_libraries(cadcam Eigen3::Eigen ${CASCADE_LIBS})
 

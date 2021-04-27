@@ -3,13 +3,13 @@
 
 #include "ICP.h"
 
-#include "opencascade/STEPCAFControl_Reader.hxx"
+#include <STEPCAFControl_Reader.hxx>
 
 std::vector<TopoDS_Shape> ReadShape(const char* filename) {
     STEPControl_Reader reader;
     IFSelect_ReturnStatus stat = reader.ReadFile(filename);
-    if (stat) {
-        std::cout << "Error reading model" << std::endl;
+    if (stat != IFSelect_RetDone) {
+        std::cout << "Error reading model: " << stat << std::endl;
         throw std::runtime_error("wrong model");
     }
     Standard_Integer num = reader.TransferRoots();
@@ -29,4 +29,6 @@ int main(int argc, char* argv[]) {
 
     auto model = ReadShape(argv[1]);
     auto points = ReadShape(argv[2]);
+
+    ICP(model, points);
 }
