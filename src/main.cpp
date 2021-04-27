@@ -1,11 +1,6 @@
-#include "mainwindow.h"
+#include "ICP.h"
 
-#include <QApplication>
+#include "opencascade/AIS.hxx"
 
-int main(int argc, char* argv[])
-{
-    QApplication a(argc, argv);
-    MainWindow w;
-    w.show();
-    return a.exec();
+int main(int argc, char* argv[]) {
 }

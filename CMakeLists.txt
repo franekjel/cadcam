@@ -1,7 +1,6 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.14)
 
 project(cadcam LANGUAGES CXX)
-
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(CMAKE_AUTOUIC ON)
@@ -11,21 +10,25 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt5 COMPONENTS Widgets REQUIRED)
-find_package(Qt5 COMPONENTS Gui REQUIRED)
+find_package(OpenCASCADE COMPONENTS FoundationClasses REQUIRED)
+find_package(OpenCASCADE COMPONENTS ModelingAlgorithms REQUIRED)
+find_package(OpenCASCADE COMPONENTS ModelingData REQUIRED)
+find_package(OpenCASCADE COMPONENTS DataExchange REQUIRED)
+find_package(OpenCASCADE COMPONENTS Visualization REQUIRED)
+
+include_directories(${OpenCASCADE_INCLUDE_DIR})
+MESSAGE("OCC-Include-Dir: ${OpenCASCADE_INCLUDE_DIR}")
+link_directories(${OpenCASCADE_LIBRARY_DIR})
+MESSAGE("OCC-Lib-Dir-Dir: ${OpenCASCADE_LIBRARY_DIR}")
 
 set(PROJECT_SOURCES
         src/main.cpp
-        src/mainwindow.cpp
-        src/mainwindow.h
-        src/mainwindow.ui
-        src/openglwidget.cpp
-        src/openglwidget.h
+        src/ICP.cpp
+        src/ICP.h
 )
 
 add_executable(cadcam
     ${PROJECT_SOURCES}
 )
 
-target_link_libraries(cadcam PRIVATE Qt5::Widgets)
-target_link_libraries(cadcam PRIVATE Qt5::Gui)
+
