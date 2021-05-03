@@ -44,7 +44,8 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
     if (!tool.IsDone())
         throw std::runtime_error("BRepExtrema_DistShapeShape error");
 
-    for (int i = 0; i < tool.NbSolution(); i++) {
+    const int n = tool.NbSolution();
+    for (int i = 1; i <= n; i++) {
         if (BRepExtrema_IsInFace == tool.SupportTypeShape1(i)) {
             double u, v;
             tool.ParOnFaceS1(i, u, v);
@@ -62,11 +63,12 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
     //to się nie powinno stać
 }
 
-Eigen::Matrix<double, 6, 1> Gradient(const TopoDS_Shape& model, const std::pair<TopoDS_Vertex, TopoDS_Vertex>& point, const Eigen::Matrix3f& rotation, const Eigen::Matrix3f& translation, const float alpha) {
+Eigen::Matrix<double, 6, 1> Gradient(const TopoDS_Shape& model, const std::pair<TopoDS_Vertex, TopoDS_Vertex>& point, const Eigen::Matrix3d& rotation, const Eigen::Matrix3d& translation, const float alpha) {
     Eigen::Matrix<double, 6, 1> re;
     auto p = BRep_Tool::Pnt(point.first);
     Eigen::Vector3d v = Eigen::Vector3d(p.X(), p.Y(), p.Z());
     v = translation * rotation * v;
+    v[0] += 10.0; //TEST
     BRep_Builder builder;
     TopoDS_Vertex vert;
     builder.MakeVertex(vert, gp_Pnt(v.x(), v.y(), v.z()), 0.01f);
@@ -76,8 +78,9 @@ Eigen::Matrix<double, 6, 1> Gradient(const TopoDS_Shape& model, const std::pair<
     re(0) = 2 * alpha * dist * N.X();
     re(1) = 2 * alpha * dist * N.Y();
     re(2) = 2 * alpha * dist * N.Z();
-    re(3) = 2 * alpha * dist * (N.Z() * (v.y() - pnt.Y()) - N.Y() * (v.z() - pnt.Z())) + (1.0f - alpha) * (n.y() * N.Z() - n.z() * N.Z());
-    //TODO: uzupełnić 4 i 5 analogicznie jeśli 3 jest ok.
+    re(3) = 2 * alpha * dist * (N.Z() * (v.y() - pnt.Y()) - N.Y() * (v.z() - pnt.Z())) + (1.0f - alpha) * (n.y() * N.Z() - n.z() * N.Y());
+    re(4) = 2 * alpha * dist * (N.X() * (v.z() - pnt.Z()) - N.Z() * (v.x() - pnt.X())) + (1.0f - alpha) * (n.z() * N.X() - n.x() * N.Z());
+    re(5) = 2 * alpha * dist * (N.Y() * (v.x() - pnt.X()) - N.X() * (v.y() - pnt.Y())) + (1.0f - alpha) * (n.x() * N.Y() - n.y() * N.X());
     return re;
 }
 
@@ -85,8 +88,8 @@ std::pair<Eigen::Matrix3Xf, Eigen::Matrix3Xf> ICP(const std::vector<TopoDS_Shape
     const int N = 400;
     const float alpha = 0.8f;
 
-    Eigen::Matrix3f rotation = Eigen::Matrix3f::Identity();
-    Eigen::Matrix3f translation = Eigen::Matrix3f::Identity();
+    Eigen::Matrix3d rotation = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d translation = Eigen::Matrix3d::Identity();
 
     auto edges = GetVertexPairList(points);
     TopoDS_Compound compound;
@@ -100,9 +103,13 @@ std::pair<Eigen::Matrix3Xf, Eigen::Matrix3Xf> ICP(const std::vector<TopoDS_Shape
         const auto& p2 = BRep_Tool::Pnt(e.second);
         printf("(%lf, %lf, %lf)-(%lf, %lf, %lf)\n", p1.X(), p1.Y(), p1.Z(), p2.X(), p2.Y(), p2.Z());
     }*/
+    Eigen::Matrix<double, 6, 1> g = Eigen::Matrix<double, 6, 1>::Zero(6, 1);
+    for (int i = 0; i < edges.size(); i++) {
+        g += Gradient(compound, edges[i], rotation, translation, 1.0f) / points.size();
+    }
+    //g /= points.size();
 
-    //for (int i = 0; i < N; i++) {
-    //}
+    printf("%lf %lf %lf %lf %lf %lf\n", g[0], g[1], g[2], g[3], g[4], g[5]);
 
     return {};
 }
