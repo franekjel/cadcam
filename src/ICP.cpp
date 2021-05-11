@@ -97,7 +97,7 @@ Eigen::Matrix<double, 6, 1> Gradient(const TopoDS_Shape& model, const std::pair<
 //    BRep_Builder builder;
 //    TopoDS_Vertex vert;
 //    builder.MakeVertex(vert, gp_Pnt(v.x(), v.y(), v.z()), 0.01f);
-    std::tuple<Standard_Real, gp_Vec, gp_Pnt> [dist, N, pnt] = DistAndNormal(model, point.first);
+    auto [dist, N, pnt] = DistAndNormal(model, point.first);
     p = BRep_Tool::Pnt(point.second);
     Eigen::Vector3d n = Eigen::Vector3d(p.X(), p.Y(), p.Z());
     re(0) = 2 * alpha * dist * N.X();
