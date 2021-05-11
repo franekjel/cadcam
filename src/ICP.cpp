@@ -29,7 +29,7 @@ std::vector<std::pair<TopoDS_Vertex, TopoDS_Vertex>> GetVertexPairList(const std
                 TopoDS_Vertex v1 = TopoDS::Vertex(itt.Value());
                 itt.Next();
                 TopoDS_Vertex v2 = TopoDS::Vertex(itt.Value());
-                edges.push_back({ v1, v2 });
+                edges.emplace_back( v1, v2 );
             }
         }
     }
@@ -41,6 +41,9 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
     tool.LoadS1(model);
     tool.LoadS2(point);
     tool.Perform();
+
+    gp_Pnt pp = BRep_Tool::Pnt(point);
+
     if (!tool.IsDone())
         throw std::runtime_error("BRepExtrema_DistShapeShape error");
 
@@ -50,11 +53,33 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
             double u, v;
             tool.ParOnFaceS1(i, u, v);
             TopoDS_Face face = TopoDS::Face(tool.SupportOnShape1(i));
-            auto surface = BRep_Tool::Surface(face);
+            opencascade::handle<Geom_Surface> surface = BRep_Tool::Surface(face);
             gp_Pnt p;
             gp_Vec D1U, D1V;
             surface->D1(u, v, p, D1U, D1V);
             gp_Vec N = D1U.Crossed(D1V);
+            return { tool.Value(), N, p };
+        } else if(BRepExtrema_IsOnEdge == tool.SupportTypeShape1(i)) {
+            double t;
+            tool.ParOnEdgeS1(i, t);
+            TopoDS_Edge edge = TopoDS::Edge(tool.SupportOnShape1(i));
+            double first, last;
+            opencascade::handle<Geom_Curve> curve = BRep_Tool::Curve(edge, first, last);
+            gp_Pnt p;
+
+            curve->D0(t, p);
+
+            gp_Vec N = gp_Vec(p, pp);
+            N.Normalize();
+
+            return { tool.Value(), N, p};
+        } else if(BRepExtrema_IsVertex == tool.SupportTypeShape1(i)) {
+            TopoDS_Vertex vertex = TopoDS::Vertex(tool.SupportOnShape1(i));
+            gp_Pnt p = BRep_Tool::Pnt(vertex);
+
+            gp_Vec N = gp_Vec(p, pp);
+            N.Normalize();
+
             return { tool.Value(), N, p };
         }
     }
@@ -65,14 +90,14 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
 
 Eigen::Matrix<double, 6, 1> Gradient(const TopoDS_Shape& model, const std::pair<TopoDS_Vertex, TopoDS_Vertex>& point, const Eigen::Matrix3d& rotation, const Eigen::Matrix3d& translation, const float alpha) {
     Eigen::Matrix<double, 6, 1> re;
-    auto p = BRep_Tool::Pnt(point.first);
+    gp_Pnt p = BRep_Tool::Pnt(point.first);
     Eigen::Vector3d v = Eigen::Vector3d(p.X(), p.Y(), p.Z());
     v = translation * rotation * v;
-    v[0] += 10.0; //TEST
-    BRep_Builder builder;
-    TopoDS_Vertex vert;
-    builder.MakeVertex(vert, gp_Pnt(v.x(), v.y(), v.z()), 0.01f);
-    auto [dist, N, pnt] = DistAndNormal(model, vert);
+//    v[0] += 10.0; //TEST
+//    BRep_Builder builder;
+//    TopoDS_Vertex vert;
+//    builder.MakeVertex(vert, gp_Pnt(v.x(), v.y(), v.z()), 0.01f);
+    std::tuple<Standard_Real, gp_Vec, gp_Pnt> [dist, N, pnt] = DistAndNormal(model, point.first);
     p = BRep_Tool::Pnt(point.second);
     Eigen::Vector3d n = Eigen::Vector3d(p.X(), p.Y(), p.Z());
     re(0) = 2 * alpha * dist * N.X();
@@ -91,7 +116,7 @@ std::pair<Eigen::Matrix3Xf, Eigen::Matrix3Xf> ICP(const std::vector<TopoDS_Shape
     Eigen::Matrix3d rotation = Eigen::Matrix3d::Identity();
     Eigen::Matrix3d translation = Eigen::Matrix3d::Identity();
 
-    auto edges = GetVertexPairList(points);
+    std::vector<std::pair<TopoDS_Vertex, TopoDS_Vertex>> edges = GetVertexPairList(points);
     TopoDS_Compound compound;
     TopoDS_Builder builder;
     builder.MakeCompound(compound);
