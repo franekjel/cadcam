@@ -29,8 +29,8 @@ std::pair<Eigen::Vector4d, Eigen::Vector4d> halfSphereFace();
 int main(int argc, char** argv) {
     cxxopts::Options options(argv[0], " - command line options");
     options.add_options()
-            ("n", "Number of points to generate", cxxopts::value<int>(), "points_num")
-            ("h,help", "Print help");
+        ("n", "Number of points to generate", cxxopts::value<int>(), "points_num")
+        ("h,help", "Print help");
 
     try {
         auto result = options.parse(argc, argv);
@@ -62,7 +62,7 @@ void generateModel(int n) {
         Eigen::Vector4d vertex, normal;
         std::tie(vertex, normal) = generate();
         vertex = transformation * vertex;
-        normal = vertex + transformation * normal;
+        normal = transformation * normal;
         gp_Pnt P(vertex[0], vertex[1], vertex[2]);
         gp_Pnt N(normal[0], normal[1], normal[2]);
         TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(P, N);
@@ -75,18 +75,18 @@ void generateModel(int n) {
     writer.Write("Output.stp");
 }
 
-Eigen::Matrix4d randomTransformation() {
-    double dx = realDistribution(generator) * 20 - 10;
-    double dy = realDistribution(generator) * 20 - 10;
-    double dz = realDistribution(generator) * 20 - 10;
+Eigen::Matrix4d randomTransformation() { // translation in y, no initial rotation
+    double dx = 0;
+    double dy = 10;
+    double dz = 0;
     Eigen::Transform<double, 3, Eigen::Affine> transformation;
     transformation = Eigen::Translation<double, 3>(Eigen::Vector3d(dx, dy, dz));
     dx = realDistribution(generator) * M_PI;
     dy = realDistribution(generator) * M_PI;
     dz = realDistribution(generator) * M_PI;
-    transformation.rotate(Eigen::AngleAxis<double>(dx, Eigen::Vector3d::UnitX()));
-    transformation.rotate(Eigen::AngleAxis<double>(dy, Eigen::Vector3d::UnitY()));
-    transformation.rotate(Eigen::AngleAxis<double>(dz, Eigen::Vector3d::UnitZ()));
+//    transformation.rotate(Eigen::AngleAxis<double>(dx, Eigen::Vector3d::UnitX()));
+//    transformation.rotate(Eigen::AngleAxis<double>(dy, Eigen::Vector3d::UnitY()));
+//    transformation.rotate(Eigen::AngleAxis<double>(dz, Eigen::Vector3d::UnitZ()));
     return transformation.matrix();
 }
 
