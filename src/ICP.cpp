@@ -5,6 +5,7 @@
 #include <BRepExtrema_DistShapeShape.hxx>
 #include <BRep_Builder.hxx>
 #include <BRep_Tool.hxx>
+#include <TopExp.hxx>
 #include <TopExp_Explorer.hxx>
 #include <TopoDS.hxx>
 #include <TopoDS_Builder.hxx>
@@ -18,19 +19,14 @@
 
 std::vector<std::pair<TopoDS_Vertex, TopoDS_Vertex>> GetVertexPairList(const std::vector<TopoDS_Shape>& points) {
     std::vector<std::pair<TopoDS_Vertex, TopoDS_Vertex>> edges;
-    for (TopoDS_Iterator i(TopoDS::Compound(points[0])); i.More(); i.Next()) {
-        const TopoDS_Shape& curShape = i.Value();
-        for (TopoDS_Iterator it(curShape); it.More(); it.Next()) {
-            auto obj = it.Value();
-            TopAbs_ShapeEnum type = obj.ShapeType();
-            if (type == TopAbs_EDGE) {
-                TopoDS_Edge edge = TopoDS::Edge(obj);
-                TopoDS_Iterator itt(edge);
-                TopoDS_Vertex v1 = TopoDS::Vertex(itt.Value());
-                itt.Next();
-                TopoDS_Vertex v2 = TopoDS::Vertex(itt.Value());
-                edges.emplace_back(v1, v2);
-            }
+    for(const auto& point : points) {
+        TopoDS_Vertex vv;
+        int i = 0;
+        for (TopExp_Explorer vertexExplorer(point, TopAbs_VERTEX); vertexExplorer.More(); vertexExplorer.Next(), i++) {
+            const auto &vertex = TopoDS::Vertex(vertexExplorer.Current());
+            if (vertex.IsNull())continue;
+            if(i % 2 == 0) vv = vertex;
+            else edges.emplace_back(vv, vertex);
         }
     }
     return edges;
@@ -48,8 +44,12 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
         throw std::runtime_error("BRepExtrema_DistShapeShape error");
 
     const int n = tool.NbSolution();
+
+    printf("dist: %f\n", tool.Value());
+
     for (int i = 1; i <= n; i++) {
         if (BRepExtrema_IsInFace == tool.SupportTypeShape1(i)) {
+            printf("face\n");
             double u, v;
             tool.ParOnFaceS1(i, u, v);
             TopoDS_Face face = TopoDS::Face(tool.SupportOnShape1(i));
@@ -57,9 +57,13 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
             gp_Pnt p;
             gp_Vec D1U, D1V;
             surface->D1(u, v, p, D1U, D1V);
-            gp_Vec N = D1U.Crossed(D1V);
+            gp_Vec N = (face.Orientation() == TopAbs_REVERSED) ? D1V.Crossed(D1U) : D1U.Crossed(D1V);
+            gp_Pnt vv = BRep_Tool::Pnt(point);
+            printf("%f, %f, %f / %f, %f, %f / %f, %f, %f \n", p.X(), p.Y(), p.Z(), vv.X(), vv.Y(), vv.Z(), N.X(), N.Y(), N.Z());
             return { tool.Value(), N, p };
         } else if (BRepExtrema_IsOnEdge == tool.SupportTypeShape1(i)) {
+
+            printf("edge\n");
             double t;
             tool.ParOnEdgeS1(i, t);
             TopoDS_Edge edge = TopoDS::Edge(tool.SupportOnShape1(i));
@@ -67,10 +71,15 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
             opencascade::handle<Geom_Curve> curve = BRep_Tool::Curve(edge, first, last);
             gp_Pnt p;
             curve->D0(t, p);
+            gp_Pnt v = BRep_Tool::Pnt(point);
+            printf("%f, %f, %f / %f, %f, %f\n", p.X(), p.Y(), p.Z(), v.X(), v.Y(), v.Z());
             return { tool.Value(), normal, p };
         } else if (BRepExtrema_IsVertex == tool.SupportTypeShape1(i)) {
+            printf("vertex\n");
             TopoDS_Vertex vertex = TopoDS::Vertex(tool.SupportOnShape1(i));
             gp_Pnt p = BRep_Tool::Pnt(vertex);
+            gp_Pnt v = BRep_Tool::Pnt(point);
+            printf("%f, %f, %f / %f, %f, %f\n", p.X(), p.Y(), p.Z(), v.X(), v.Y(), v.Z());
             return { tool.Value(), normal, p };
         }
     }
@@ -129,13 +138,13 @@ std::pair<Eigen::Matrix3Xf, Eigen::Matrix3Xf> ICP(const std::vector<TopoDS_Shape
     double a = sqrt(g[3] * g[3] + g[4] * g[4] + g[5] * g[5]);
 
     double s = abs(g[0]) + abs(g[1]) + abs(g[2]);
-    if (s != 0.0f) {
+    if (s > 0.001f) {
         g[0] /= s;
         g[1] /= s;
         g[2] /= s;
     }
     s = abs(g[3]) + abs(g[4]) + abs(g[5]);
-    if (s != 0.0f) {
+    if (s > 0.001f) {
         g[3] /= s;
         g[4] /= s;
         g[5] /= s;

@@ -1,15 +1,15 @@
 #pragma ide diagnostic ignored "cert-err58-cpp"
-#include <iostream>
+#include "src/cxxopts.h"
+#include <BRepBuilderAPI_MakeEdge.hxx>
+#include <BRep_Builder.hxx>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <random>
-#include "cxxopts.h"
 #include <STEPControl_Writer.hxx>
-#include <TopoDS_Shape.hxx>
 #include <TopoDS_Builder.hxx>
-#include <BRep_Builder.hxx>
 #include <TopoDS_Edge.hxx>
-#include <BRepBuilderAPI_MakeEdge.hxx>
+#include <TopoDS_Shape.hxx>
+#include <iostream>
+#include <random>
 
 std::mt19937 generator(std::random_device{}());
 std::uniform_real_distribution<double> realDistribution(0.0, 1.0);
@@ -77,16 +77,16 @@ void generateModel(int n) {
 
 Eigen::Matrix4d randomTransformation() { // translation in y, no initial rotation
     double dx = 0;
-    double dy = 10;
+    double dy = -2;
     double dz = 0;
     Eigen::Transform<double, 3, Eigen::Affine> transformation;
     transformation = Eigen::Translation<double, 3>(Eigen::Vector3d(dx, dy, dz));
-    dx = realDistribution(generator) * M_PI;
-    dy = realDistribution(generator) * M_PI;
-    dz = realDistribution(generator) * M_PI;
-//    transformation.rotate(Eigen::AngleAxis<double>(dx, Eigen::Vector3d::UnitX()));
-//    transformation.rotate(Eigen::AngleAxis<double>(dy, Eigen::Vector3d::UnitY()));
-//    transformation.rotate(Eigen::AngleAxis<double>(dz, Eigen::Vector3d::UnitZ()));
+//    dx = realDistribution(generator) * M_PI;
+//    dy = realDistribution(generator) * M_PI;
+//    dz = realDistribution(generator) * M_PI
+//    transformation.rotate(Eigen::AngleAxis<double>(M_PI / 2, Eigen::Vector3d::UnitX()));
+//    transformation.rotate(Eigen::AngleAxis<double>(0, Eigen::Vector3d::UnitY()));
+//    transformation.rotate(Eigen::AngleAxis<double>(0, Eigen::Vector3d::UnitZ()));
     return transformation.matrix();
 }
 
