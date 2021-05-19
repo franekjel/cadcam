@@ -62,7 +62,7 @@ void generateModel(int n) {
         Eigen::Vector4d vertex, normal;
         std::tie(vertex, normal) = generate();
         vertex = transformation * vertex;
-        normal = transformation * normal;
+        normal = transformation * normal + vertex;
         gp_Pnt P(vertex[0], vertex[1], vertex[2]);
         gp_Pnt N(normal[0], normal[1], normal[2]);
         TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(P, N);
