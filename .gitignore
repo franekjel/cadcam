@@ -3,6 +3,8 @@
 
 CMakeLists.txt.user*
 
+build-*
+
 *~
 *.autosave
 *.a
