@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>cube_v.glsl</file>
+        <file>cube_f.glsl</file>
+    </qresource>
+</RCC>
