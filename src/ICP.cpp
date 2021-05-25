@@ -43,11 +43,8 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
 
     const int n = tool.NbSolution();
 
-    printf("dist: %f\n", tool.Value());
-
     for (int i = 1; i <= n; i++) {
         if (BRepExtrema_IsInFace == tool.SupportTypeShape1(i)) {
-            printf("face\n");
             double u, v;
             tool.ParOnFaceS1(i, u, v);
             TopoDS_Face face = TopoDS::Face(tool.SupportOnShape1(i));
@@ -57,11 +54,8 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
             surface->D1(u, v, p, D1U, D1V);
             gp_Vec N = (face.Orientation() == TopAbs_REVERSED) ? D1V.Crossed(D1U) : D1U.Crossed(D1V);
             gp_Pnt vv = BRep_Tool::Pnt(point);
-            printf("%f, %f, %f / %f, %f, %f / %f, %f, %f \n", p.X(), p.Y(), p.Z(), vv.X(), vv.Y(), vv.Z(), N.X(), N.Y(), N.Z());
             return { tool.Value(), N, p };
         } else if (BRepExtrema_IsOnEdge == tool.SupportTypeShape1(i)) {
-
-            printf("edge\n");
             double t;
             tool.ParOnEdgeS1(i, t);
             TopoDS_Edge edge = TopoDS::Edge(tool.SupportOnShape1(i));
@@ -70,14 +64,11 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
             gp_Pnt p;
             curve->D0(t, p);
             gp_Pnt v = BRep_Tool::Pnt(point);
-            printf("%f, %f, %f / %f, %f, %f\n", p.X(), p.Y(), p.Z(), v.X(), v.Y(), v.Z());
             return { tool.Value(), normal, p };
         } else if (BRepExtrema_IsVertex == tool.SupportTypeShape1(i)) {
-            printf("vertex\n");
             TopoDS_Vertex vertex = TopoDS::Vertex(tool.SupportOnShape1(i));
             gp_Pnt p = BRep_Tool::Pnt(vertex);
             gp_Pnt v = BRep_Tool::Pnt(point);
-            printf("%f, %f, %f / %f, %f, %f\n", p.X(), p.Y(), p.Z(), v.X(), v.Y(), v.Z());
             return { tool.Value(), normal, p };
         }
     }
