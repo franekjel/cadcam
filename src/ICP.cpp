@@ -36,8 +36,6 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
     tool.LoadS2(point);
     tool.Perform();
 
-    gp_Pnt pp = BRep_Tool::Pnt(point);
-
     if (!tool.IsDone())
         throw std::runtime_error("BRepExtrema_DistShapeShape error");
 
@@ -53,7 +51,6 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
             gp_Vec D1U, D1V;
             surface->D1(u, v, p, D1U, D1V);
             gp_Vec N = (face.Orientation() == TopAbs_REVERSED) ? D1V.Crossed(D1U) : D1U.Crossed(D1V);
-            gp_Pnt vv = BRep_Tool::Pnt(point);
             return { tool.Value(), N, p };
         } else if (BRepExtrema_IsOnEdge == tool.SupportTypeShape1(i)) {
             double t;
@@ -63,12 +60,10 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
             opencascade::handle<Geom_Curve> curve = BRep_Tool::Curve(edge, first, last);
             gp_Pnt p;
             curve->D0(t, p);
-            gp_Pnt v = BRep_Tool::Pnt(point);
             return { tool.Value(), normal, p };
         } else if (BRepExtrema_IsVertex == tool.SupportTypeShape1(i)) {
             TopoDS_Vertex vertex = TopoDS::Vertex(tool.SupportOnShape1(i));
             gp_Pnt p = BRep_Tool::Pnt(vertex);
-            gp_Pnt v = BRep_Tool::Pnt(point);
             return { tool.Value(), normal, p };
         }
     }
