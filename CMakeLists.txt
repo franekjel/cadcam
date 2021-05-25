@@ -15,6 +15,7 @@ find_package(OpenCASCADE COMPONENTS ModelingAlgorithms REQUIRED)
 find_package(OpenCASCADE COMPONENTS ModelingData REQUIRED)
 find_package(OpenCASCADE COMPONENTS DataExchange REQUIRED)
 find_package(OpenCASCADE COMPONENTS Visualization REQUIRED)
+find_package(Qt6 COMPONENTS Widgets)
 
 include_directories(${OpenCASCADE_INCLUDE_DIR})
 MESSAGE("OCC-Include-Dir: ${OpenCASCADE_INCLUDE_DIR}")
@@ -30,13 +31,14 @@ set(PROJECT_SOURCES
         src/ICP.h
 )
 
-add_executable(cadcam
-    ${PROJECT_SOURCES}
-)
-
 set(CASCADE_LIBS
     TKBinL TKFeat TKMesh TKSTEPAttr TKXCAF TKMeshVS TKSTEPBase TKBin TKFillet TKXDEDRAW TKBinTObj TKG2d TKOffset TKSTEP TKXDEIGES TKBinXCAF TKG3d TKOpenGl TKSTL TKXDESTEP TKTObjDRAW TKXMesh TKBool TKGeomAlgo TKPrim TKBO TKGeomBase TKQADraw TKTObj TKXmlL TKRWMesh TKTopAlgo TKXml TKBRep TKHLR TKCAF TKIGES TKService TKTopTest TKXmlTObj TKCDF TKShHealing TKV3d TKDCAF TKStdL TKVCAF TKXSBase TKLCAF TKViewerTest TKXSDRAW TKStd TKernel TKMath TKSTEP209 TKVRML
 )
 
+
+add_executable(points src/points.cpp src/cxxopts.h)
+target_link_libraries(points Eigen3::Eigen ${CASCADE_LIBS})
+
+add_executable(cadcam ${PROJECT_SOURCES})
 target_link_libraries(cadcam Eigen3::Eigen ${CASCADE_LIBS})
 
