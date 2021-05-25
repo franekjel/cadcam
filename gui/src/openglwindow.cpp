@@ -8,8 +8,8 @@
 OpenGLWindow::OpenGLWindow(const std::vector<std::pair<QVector3D, QVector3D>>& _points, const std::vector<std::pair<QMatrix4x4, QMatrix4x4>>& _matrices, QWindow* parent) {
     points = _points;
     matrices = _matrices;
-    if (_matrices.empty())
-        matrices.push_back({ Identity(), Identity() });
+    matrices.push_back({ Identity(), Identity() });
+    cur_trans = matrices.size() - 1;
 
     camera.translation = QVector3D(0, 0, -6.0f);
     camera.RotateX(-0.8f);
@@ -59,6 +59,7 @@ void OpenGLWindow::initializeGL() {
         points_.emplace_back(std::shared_ptr<Point>(new Point(f, p.first, p.second)));
 
     cube = std::shared_ptr<Cube>(new Cube(f));
+    //cube->translation = QVector3D(1.0f, 1.0f, 1.0f);
 
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
