@@ -39,43 +39,44 @@ std::pair<std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3i>> Triangulat
     std::vector<Eigen::Vector3i> indexes;
     int idx = 0;
 
-    // make one compound object:
-    TopoDS_Builder builder;
-    TopoDS_Compound compound;
-    builder.MakeCompound(compound);
-    for (auto& part : parts)
-        builder.Add(compound, part);
-    BRepMesh_IncrementalMesh mesh(compound, deflection);
-
-    // iterate over faces:
-    for (TopExp_Explorer faceExplorer(compound, TopAbs_FACE); faceExplorer.More(); faceExplorer.Next())
-    {
-        const auto& face = TopoDS::Face(faceExplorer.Current());
-        if (face.IsNull())
-            continue;
-
-        // triangulate face:
-        TopLoc_Location location;
-        Handle_Poly_Triangulation triangulation = BRep_Tool::Triangulation(face, location);
-        if (triangulation.IsNull())
-            continue;
-
-        const TColgp_Array1OfPnt& nodes = triangulation->Nodes();
-        const Poly_Array1OfTriangle& triangles = triangulation->Triangles();
-        // Iterate over the triangles and their nodes.
-        for (int i = triangles.Lower(); i <= triangles.Upper(); i++)
+    for (auto& part : parts) {
+        BRepMesh_IncrementalMesh mesh(part, deflection);
+        // iterate over faces:
+        for (TopExp_Explorer faceExplorer(part, TopAbs_FACE); faceExplorer.More(); faceExplorer.Next())
         {
-            const Poly_Triangle& triangle = triangles(i);
-            const gp_Pnt& p1 = nodes(triangle(1));
-            const gp_Pnt& p2 = nodes(triangle(2));
-            const gp_Pnt& p3 = nodes(triangle(3));
+            const auto& face = TopoDS::Face(faceExplorer.Current());
+            if (face.IsNull())
+                continue;
 
-            positions.emplace_back(p1.X(), p1.Y(), p1.Z());
-            positions.emplace_back(p2.X(), p2.Y(), p2.Z());
-            positions.emplace_back(p3.X(), p3.Y(), p3.Z());
+            // triangulate face:
+            TopLoc_Location location = part.Location();
+            Handle_Poly_Triangulation triangulation = BRep_Tool::Triangulation(face, location);
+            if (triangulation.IsNull())
+                continue;
 
-            indexes.emplace_back(idx, idx + 1, idx + 2);
-            idx += 3;
+            const TColgp_Array1OfPnt& nodes = triangulation->Nodes();
+            const Poly_Array1OfTriangle& triangles = triangulation->Triangles();
+
+            const gp_Trsf& transformation = location.Transformation();
+
+            // Iterate over the triangles and their nodes.
+            for (int i = triangles.Lower(); i <= triangles.Upper(); i++)
+            {
+                const Poly_Triangle& triangle = triangles(i);
+                const gp_Pnt& p1 = nodes(triangle(1));
+                gp_Pnt v1 = p1.Transformed(transformation);
+                const gp_Pnt& p2 = nodes(triangle(2));
+                gp_Pnt v2 = p2.Transformed(transformation);
+                const gp_Pnt& p3 = nodes(triangle(3));
+                gp_Pnt v3 = p3.Transformed(transformation);
+
+                positions.emplace_back(v1.X(), v1.Y(), v1.Z());
+                positions.emplace_back(v2.X(), v2.Y(), v2.Z());
+                positions.emplace_back(v3.X(), v3.Y(), v3.Z());
+
+                indexes.emplace_back(idx, idx + 1, idx + 2);
+                idx += 3;
+            }
         }
     }
 
