@@ -18,12 +18,15 @@
 #include <gp_Pnt.hxx>
 #include <gp_Vec.hxx>
 
-std::vector<std::pair<TopoDS_Vertex, TopoDS_Vertex>> GetVertexPairList(const std::vector<TopoDS_Shape>& points) {
+std::vector<std::pair<TopoDS_Vertex, TopoDS_Vertex>> GetVertexPairList(const std::vector<TopoDS_Shape>& points)
+{
     std::vector<std::pair<TopoDS_Vertex, TopoDS_Vertex>> edges;
-    for (const auto& point : points) {
+    for (const auto& point : points)
+    {
         TopoDS_Vertex vv;
         int i = 0;
-        for (TopExp_Explorer vertexExplorer(point, TopAbs_VERTEX); vertexExplorer.More(); vertexExplorer.Next(), i++) {
+        for (TopExp_Explorer vertexExplorer(point, TopAbs_VERTEX); vertexExplorer.More(); vertexExplorer.Next(), i++)
+        {
             const auto& vertex = TopoDS::Vertex(vertexExplorer.Current());
             if (vertex.IsNull())
                 continue;
@@ -36,7 +39,8 @@ std::vector<std::pair<TopoDS_Vertex, TopoDS_Vertex>> GetVertexPairList(const std
     return edges;
 }
 
-std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& model, const TopoDS_Vertex& point, const gp_Vec normal) {
+std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& model, const TopoDS_Vertex& point, const gp_Vec normal)
+{
     BRepExtrema_DistShapeShape tool;
     tool.LoadS1(model);
     tool.LoadS2(point);
@@ -47,8 +51,10 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
 
     const int n = tool.NbSolution();
 
-    for (int i = 1; i <= n; i++) {
-        if (BRepExtrema_IsInFace == tool.SupportTypeShape1(i)) {
+    for (int i = 1; i <= n; i++)
+    {
+        if (BRepExtrema_IsInFace == tool.SupportTypeShape1(i))
+        {
             double u, v;
             tool.ParOnFaceS1(i, u, v);
             TopoDS_Face face = TopoDS::Face(tool.SupportOnShape1(i));
@@ -58,7 +64,9 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
             surface->D1(u, v, p, D1U, D1V);
             gp_Vec N = (face.Orientation() == TopAbs_REVERSED) ? D1V.Crossed(D1U) : D1U.Crossed(D1V);
             return { tool.Value(), N, p };
-        } else if (BRepExtrema_IsOnEdge == tool.SupportTypeShape1(i)) {
+        }
+        else if (BRepExtrema_IsOnEdge == tool.SupportTypeShape1(i))
+        {
             double t;
             tool.ParOnEdgeS1(i, t);
             TopoDS_Edge edge = TopoDS::Edge(tool.SupportOnShape1(i));
@@ -67,7 +75,9 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
             gp_Pnt p;
             curve->D0(t, p);
             return { tool.Value(), normal, p };
-        } else if (BRepExtrema_IsVertex == tool.SupportTypeShape1(i)) {
+        }
+        else if (BRepExtrema_IsVertex == tool.SupportTypeShape1(i))
+        {
             TopoDS_Vertex vertex = TopoDS::Vertex(tool.SupportOnShape1(i));
             gp_Pnt p = BRep_Tool::Pnt(vertex);
             return { tool.Value(), normal, p };
@@ -78,7 +88,8 @@ std::tuple<Standard_Real, gp_Vec, gp_Pnt> DistAndNormal(const TopoDS_Shape& mode
     //to się nie powinno stać
 }
 
-Eigen::Matrix<double, 6, 1> Gradient(const TopoDS_Shape& model, const std::pair<TopoDS_Vertex, TopoDS_Vertex>& point, const Eigen::Matrix4d& rotation, const Eigen::Matrix4d& translation, const float alpha) {
+Eigen::Matrix<double, 6, 1> Gradient(const TopoDS_Shape& model, const std::pair<TopoDS_Vertex, TopoDS_Vertex>& point, const Eigen::Matrix4d& rotation, const Eigen::Matrix4d& translation, const float alpha, double& d)
+{
 
     /*
     v,n - punkt i normalna po transformacji jako eigenowy wektor
@@ -105,6 +116,7 @@ Eigen::Matrix<double, 6, 1> Gradient(const TopoDS_Shape& model, const std::pair<
     gp_Vec NN = gp_Vec(n.x(), n.y(), n.z());
     NN.Normalize();
     auto [dist, N, V] = DistAndNormal(model, VV, NN);
+    d = dist;
     re(0) = 2 * alpha * dist * N.X();
     re(1) = 2 * alpha * dist * N.Y();
     re(2) = 2 * alpha * dist * N.Z();
@@ -114,7 +126,8 @@ Eigen::Matrix<double, 6, 1> Gradient(const TopoDS_Shape& model, const std::pair<
     return re;
 }
 
-std::pair<Eigen::Matrix3Xf, Eigen::Matrix3Xf> ICP(const std::vector<TopoDS_Shape>& model, const std::vector<TopoDS_Shape>& points) {
+std::pair<Eigen::Matrix3Xf, Eigen::Matrix3Xf> ICP(const std::vector<TopoDS_Shape>& model, const std::vector<TopoDS_Shape>& points)
+{
     const int N = 400;
     const float alpha = 0.8f;
 
@@ -129,42 +142,44 @@ std::pair<Eigen::Matrix3Xf, Eigen::Matrix3Xf> ICP(const std::vector<TopoDS_Shape
         builder.Add(compound, model[i]);
 
     std::ofstream file("matrices.txt", std::ios::trunc);
-    for (int i = 0; i < 100; i++) {
+    double prev_dist = std::numeric_limits<double>::max();
+    bool r = false;
+    for (int i = 0; i < 100; i++)
+    {
 
         Eigen::Matrix<double, 6, 1> g = Eigen::Matrix<double, 6, 1>::Zero(6, 1);
-        for (int i = 0; i < edges.size(); i++) {
-            g += Gradient(compound, edges[i], rotation, translation, 1.0f) / points.size();
+        double dist_sum = 0.0;
+        for (int i = 0; i < edges.size(); i++)
+        {
+            double dist;
+            g += Gradient(compound, edges[i], rotation, translation, 0.8f, dist) / points.size();
+            dist_sum += dist * dist;
         }
+        printf("Iteration %d: %.3lf\n", i, dist_sum);
+        if (prev_dist < dist_sum)
+        {
+            return {};
+        }
+        prev_dist = dist_sum;
         g /= -double(edges.size());
 
         Eigen::Transform<double, 3, Eigen::Affine> transformation;
         transformation = Eigen::Translation<double, 3>(g[0], g[1], g[2]);
         translation *= transformation.matrix();
         auto v = translation.col(3);
-        file << v.x() << " " << v.y() << " " << v.z();
+        file << v.x() << " " << v.y() << " " << v.z() << " ";
 
-        double s = abs(g[0]) + abs(g[1]) + abs(g[2]);
-        s = abs(g[3]) + abs(g[4]) + abs(g[5]);
-        if (s > 0.001f) {
-            g[3] /= s;
-            g[4] /= s;
-            g[5] /= s;
-        }
+        double angle = sqrt(abs(g[3]) * abs(g[3]) + abs(g[4]) * abs(g[4]) + abs(g[5]) * abs(g[5]));
+        auto axis = Eigen::Vector3d(g[3], g[4], g[5]).normalized();
+        transformation = Eigen::AngleAxis(angle, axis);
+        rotation *= transformation.matrix();
+        Eigen::AngleAxisd a = Eigen::AngleAxisd(rotation.block<3, 3>(0, 0));
 
-        file << " 1 0 0 0" << std::endl;
+        //file << " 1 0 0 0" << std::endl;
 
-        /*
-        Trzeba zapisywać do pliku w formacie
-        Tx Ty Tz Rx Ry Rz alfa
-        Gdzie T to translacja
-        R - oś obrotu
-        alfa - kąt
-        file << ...
-        */
+        file << a.axis().x() << " " << a.axis().y() << " " << a.axis().z() << " " << a.angle() << std::endl;
 
         transformation = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-
-        printf("%lf %lf %lf %lf %lf %lf\n", g[0], g[1], g[2], g[3], g[4], g[5]);
     }
 
     return {};
