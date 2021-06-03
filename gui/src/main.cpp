@@ -19,31 +19,37 @@
 
 #include "openglwindow.h"
 
-std::vector<std::pair<QVector3D, QVector3D>> ReadPoints(const char* filename) {
+std::vector<std::pair<QVector3D, QVector3D>> ReadPoints(const char* filename)
+{
     STEPControl_Reader reader;
     IFSelect_ReturnStatus stat = reader.ReadFile(filename);
-    if (stat != IFSelect_RetDone) {
+    if (stat != IFSelect_RetDone)
+    {
         std::cout << "Error reading model: " << stat << std::endl;
         throw std::runtime_error("wrong model");
     }
     Standard_Integer num = reader.TransferRoots();
 
     std::vector<TopoDS_Shape> objects(num);
-    for (int i = 0; i < num; i++) {
+    for (int i = 0; i < num; i++)
+    {
         objects[i] = reader.OneShape();
     }
 
     std::vector<std::pair<QVector3D, QVector3D>> points;
-    for (const auto& point : objects) {
+    for (const auto& point : objects)
+    {
         TopoDS_Vertex vv;
         int i = 0;
-        for (TopExp_Explorer vertexExplorer(point, TopAbs_VERTEX); vertexExplorer.More(); vertexExplorer.Next(), i++) {
+        for (TopExp_Explorer vertexExplorer(point, TopAbs_VERTEX); vertexExplorer.More(); vertexExplorer.Next(), i++)
+        {
             const auto& vertex = TopoDS::Vertex(vertexExplorer.Current());
             if (vertex.IsNull())
                 continue;
             if (i % 2 == 0)
                 vv = vertex;
-            else {
+            else
+            {
                 gp_Pnt p = BRep_Tool::Pnt(vv);
                 gp_Pnt n = BRep_Tool::Pnt(vertex);
                 points.emplace_back(QVector3D(p.X(), p.Y(), p.Z()), QVector3D(n.X(), n.Y(), n.Z()));
@@ -53,16 +59,19 @@ std::vector<std::pair<QVector3D, QVector3D>> ReadPoints(const char* filename) {
     return points;
 }
 
-std::vector<std::pair<QMatrix4x4, QMatrix4x4>> ReadMatrices(const char* filename) {
+std::vector<std::pair<QMatrix4x4, QMatrix4x4>> ReadMatrices(const char* filename)
+{
     std::ifstream file;
     file.open(filename);
-    if (!file.is_open()) {
+    if (!file.is_open())
+    {
         std::cout << "Cannot open file " << filename << std::endl;
         throw std::runtime_error("cannot read points");
     }
     std::string line;
     std::vector<std::pair<QMatrix4x4, QMatrix4x4>> matrices;
-    while (std::getline(file, line)) {
+    while (std::getline(file, line))
+    {
         if (line.size() < 3)
             continue;
         std::istringstream ss(line);
@@ -77,21 +86,36 @@ std::vector<std::pair<QMatrix4x4, QMatrix4x4>> ReadMatrices(const char* filename
         ss >> y;
         ss >> z;
         ss >> angle;
-        rot.rotate(x, y, z, angle);
+        rot.rotate(angle * 180.0f / M_PI, x, y, z);
         matrices.emplace_back(tra, rot);
     }
     return matrices;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
 
-    if (argc < 3) {
+    if (argc < 3)
+    {
         std::cout << "NEED FILES" << std::endl;
         return EXIT_FAILURE;
     }
 
     std::vector<std::pair<QVector3D, QVector3D>> points = ReadPoints(argv[1]);
     std::vector<std::pair<QMatrix4x4, QMatrix4x4>> matrices = ReadMatrices(argv[2]);
+
+    std::string model = "";
+    if (argc > 3)
+    {
+        std::ifstream file;
+        file.open(argv[3]);
+        if (!file.is_open())
+        {
+            std::cout << "Cannot open file " << argv[3] << std::endl;
+            throw std::runtime_error("cannot read model");
+        }
+        model = std::string((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
+    }
 
     std::cout << "Found " << points.size() << " points" << std::endl;
 
@@ -107,7 +131,7 @@ int main(int argc, char* argv[]) {
     f.setStencilBufferSize(8);
     QSurfaceFormat::setDefaultFormat(f);
 
-    OpenGLWindow window(points, matrices);
+    OpenGLWindow window(points, matrices, model);
     window.show();
     return a.exec();
 }

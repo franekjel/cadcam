@@ -144,7 +144,7 @@ QMatrix4x4 Camera::Rotation() {
 Cube::Cube(const std::vector<float>& p, const IndicesBuffer& i, QOpenGLFunctions_4_2_Core* _f) {
     f = _f;
     indices = i;
-    cube_vertices = p;
+    vertices = p;
 
     f->glGenVertexArrays(1, &VAO);
     f->glGenBuffers(1, &VBO);
@@ -152,7 +152,7 @@ Cube::Cube(const std::vector<float>& p, const IndicesBuffer& i, QOpenGLFunctions
     f->glBindVertexArray(VAO);
 
     f->glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    f->glBufferData(GL_ARRAY_BUFFER, sizeof(float) * cube_vertices.size(), cube_vertices.data(), GL_STATIC_DRAW);
+    f->glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
 
     f->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     f->glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(EdgeIndices) * indices.size(), indices.data(), GL_STATIC_DRAW);

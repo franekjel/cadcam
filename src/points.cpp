@@ -11,7 +11,7 @@
 #include <iostream>
 #include <random>
 
-std::mt19937 generator(std::random_device{}());
+std::mt19937 generator(std::random_device {}());
 std::uniform_real_distribution<double> realDistribution(0.0, 1.0);
 std::normal_distribution<double> normalDistribution(0.0, 1.0);
 
@@ -26,25 +26,29 @@ std::pair<Eigen::Vector4d, Eigen::Vector4d> backFace();
 std::pair<Eigen::Vector4d, Eigen::Vector4d> topFace();
 std::pair<Eigen::Vector4d, Eigen::Vector4d> halfSphereFace();
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     cxxopts::Options options(argv[0], " - command line options");
-    options.add_options()
-        ("n", "Number of points to generate", cxxopts::value<int>(), "points_num")
-        ("h,help", "Print help");
+    options.add_options()("n", "Number of points to generate", cxxopts::value<int>(), "points_num")("h,help", "Print help");
 
-    try {
+    try
+    {
         auto result = options.parse(argc, argv);
 
-        if (result.count("help")) {
+        if (result.count("help"))
+        {
             std::cout << options.help() << std::endl;
             exit(0);
         }
 
-        if (result.count("n")) {
+        if (result.count("n"))
+        {
             int n = result["n"].as<int>();
             generateModel(n);
         }
-    } catch (const cxxopts::OptionException& e) {
+    }
+    catch (const cxxopts::OptionException& e)
+    {
         std::cerr << "Error parsing options: " << e.what() << std::endl;
         exit(1);
     }
@@ -52,17 +56,20 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-void generateModel(int n) {
+void generateModel(int n)
+{
     auto transformation = randomTransformation();
-    std::cout << "Transformation: " << std::endl << transformation << std::endl;
+    std::cout << "Transformation: " << std::endl
+              << transformation << std::endl;
     TopoDS_Compound source;
     TopoDS_Builder builder;
     builder.MakeCompound(source);
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < n; ++i)
+    {
         Eigen::Vector4d vertex, normal;
         std::tie(vertex, normal) = generate();
         vertex = transformation * vertex;
-        normal = transformation * normal + vertex;
+        normal = transformation * normal;
         gp_Pnt P(vertex[0], vertex[1], vertex[2]);
         gp_Pnt N(normal[0], normal[1], normal[2]);
         TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(P, N);
@@ -75,91 +82,115 @@ void generateModel(int n) {
     writer.Write("Output.stp");
 }
 
-Eigen::Matrix4d randomTransformation() { // translation in y, no initial rotation
+Eigen::Matrix4d randomTransformation()
+{ // translation in y, no initial rotation
     double dx = 0;
-    double dy = -2;
-    double dz = 0;
+    double dy = 0;
+    double dz = 2.0;
     Eigen::Transform<double, 3, Eigen::Affine> transformation;
     transformation = Eigen::Translation<double, 3>(Eigen::Vector3d(dx, dy, dz));
-//    dx = realDistribution(generator) * M_PI;
-//    dy = realDistribution(generator) * M_PI;
-//    dz = realDistribution(generator) * M_PI
-//    transformation.rotate(Eigen::AngleAxis<double>(M_PI / 2, Eigen::Vector3d::UnitX()));
-//    transformation.rotate(Eigen::AngleAxis<double>(0, Eigen::Vector3d::UnitY()));
-//    transformation.rotate(Eigen::AngleAxis<double>(0, Eigen::Vector3d::UnitZ()));
+    dx = 0.0 * M_PI; //realDistribution(generator) * M_PI;
+    dy = 0.05 * M_PI;
+    dz = 0.0 * M_PI; //realDistribution(generator) * M_PI;
+    transformation.rotate(Eigen::AngleAxis<double>(dx, Eigen::Vector3d::UnitX()));
+    transformation.rotate(Eigen::AngleAxis<double>(dy, Eigen::Vector3d::UnitY()));
+    transformation.rotate(Eigen::AngleAxis<double>(dz, Eigen::Vector3d::UnitZ()));
     return transformation.matrix();
 }
 
-std::pair<Eigen::Vector4d, Eigen::Vector4d> generate() {
+std::pair<Eigen::Vector4d, Eigen::Vector4d> generate()
+{
     double p = realDistribution(generator) * (4 * 5 + 4 + M_PI);
-    if(p < 4) {
+    if (p < 4)
+    {
         return bottomFace();
-    } else if(p < 8) {
+    }
+    else if (p < 8)
+    {
         return rightFace();
-    } else if(p < 12) {
+    }
+    else if (p < 12)
+    {
         return leftFace();
-    } else if(p < 16) {
+    }
+    else if (p < 16)
+    {
         return frontFace();
-    } else if(p < 20) {
+    }
+    else if (p < 20)
+    {
         return backFace();
-    } else if(p < 20 + 4 - M_PI) {
+    }
+    else if (p < 20 + 4 - M_PI)
+    {
         return topFace();
-    } else {
+    }
+    else
+    {
         return halfSphereFace();
     }
 }
 
-std::pair<Eigen::Vector4d, Eigen::Vector4d> bottomFace() {
+std::pair<Eigen::Vector4d, Eigen::Vector4d> bottomFace()
+{
     double x = realDistribution(generator) * 2 - 1;
     double y = -1;
     double z = realDistribution(generator) * 2 - 1;
     return std::make_pair(Eigen::Vector4d(x, y, z, 1), Eigen::Vector4d(0, -1, 0, 0));
 }
 
-std::pair<Eigen::Vector4d, Eigen::Vector4d> rightFace() {
+std::pair<Eigen::Vector4d, Eigen::Vector4d> rightFace()
+{
     double x = 1;
     double y = realDistribution(generator) * 2 - 1;
     double z = realDistribution(generator) * 2 - 1;
     return std::make_pair(Eigen::Vector4d(x, y, z, 1), Eigen::Vector4d(1, 0, 0, 0));
 }
 
-std::pair<Eigen::Vector4d, Eigen::Vector4d> leftFace() {
+std::pair<Eigen::Vector4d, Eigen::Vector4d> leftFace()
+{
     double x = -1;
     double y = realDistribution(generator) * 2 - 1;
     double z = realDistribution(generator) * 2 - 1;
     return std::make_pair(Eigen::Vector4d(x, y, z, 1), Eigen::Vector4d(-1, 0, 0, 0));
 }
 
-std::pair<Eigen::Vector4d, Eigen::Vector4d> frontFace() {
+std::pair<Eigen::Vector4d, Eigen::Vector4d> frontFace()
+{
     double x = realDistribution(generator) * 2 - 1;
     double y = realDistribution(generator) * 2 - 1;
     double z = 1;
     return std::make_pair(Eigen::Vector4d(x, y, z, 1), Eigen::Vector4d(0, 0, 1, 0));
 }
 
-std::pair<Eigen::Vector4d, Eigen::Vector4d> backFace() {
+std::pair<Eigen::Vector4d, Eigen::Vector4d> backFace()
+{
     double x = realDistribution(generator) * 2 - 1;
     double y = realDistribution(generator) * 2 - 1;
     double z = -1;
     return std::make_pair(Eigen::Vector4d(x, y, z, 1), Eigen::Vector4d(0, 0, -1, 0));
 }
 
-std::pair<Eigen::Vector4d, Eigen::Vector4d> topFace() {
-    do {
+std::pair<Eigen::Vector4d, Eigen::Vector4d> topFace()
+{
+    do
+    {
         double x = realDistribution(generator) * 2 - 1;
         double y = 1;
         double z = realDistribution(generator) * 2 - 1;
-        if(x * x + z * z > 1) { // 22% acceptance rate
+        if (x * x + z * z > 1)
+        { // 22% acceptance rate
             return std::make_pair(Eigen::Vector4d(x, y, z, 1), Eigen::Vector4d(0, 1, 0, 0));
         }
-    } while(true);
+    } while (true);
 }
 
-std::pair<Eigen::Vector4d, Eigen::Vector4d> halfSphereFace() {
+std::pair<Eigen::Vector4d, Eigen::Vector4d> halfSphereFace()
+{
     double x = normalDistribution(generator);
     double y = normalDistribution(generator);
     double z = normalDistribution(generator);
     double norm = sqrt(x * x + y * y + z * z);
     return std::make_pair(Eigen::Vector4d(x / norm, abs(y) / norm + 1, z / norm, 1),
-                          Eigen::Vector4d(x / norm, abs(y) / norm, z / norm, 0));
+        Eigen::Vector4d(x / norm, abs(y) / norm, z / norm, 0));
 }

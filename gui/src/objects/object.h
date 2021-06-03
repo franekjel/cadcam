@@ -22,7 +22,7 @@ struct IndicesBuffer : public std::vector<unsigned int> {
         emplace_back(e.indices[0]);
         emplace_back(e.indices[1]);
     }
-    void add_triangle(const EdgeIndices& t) {
+    void add_triangle(const TriangleIndices& t) {
         emplace_back(t.indices[0]);
         emplace_back(t.indices[1]);
         emplace_back(t.indices[2]);
@@ -83,7 +83,6 @@ protected:
 };
 
 class Cube : public Object {
-    std::vector<float> cube_vertices;
 
 public:
     Cube(const std::vector<float>& p, const IndicesBuffer& i, QOpenGLFunctions_4_2_Core* f);
