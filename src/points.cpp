@@ -16,6 +16,7 @@ std::uniform_real_distribution<double> realDistribution(0.0, 1.0);
 std::normal_distribution<double> normalDistribution(0.0, 1.0);
 
 void generateModel(int n);
+Eigen::Vector4d randomDisturbance(const Eigen::Vector4d v);
 Eigen::Matrix4d randomTransformation();
 std::pair<Eigen::Vector4d, Eigen::Vector4d> generate();
 std::pair<Eigen::Vector4d, Eigen::Vector4d> bottomFace();
@@ -69,6 +70,10 @@ void generateModel(int n)
         Eigen::Vector4d vertex, normal;
         std::tie(vertex, normal) = generate();
         vertex = transformation * vertex;
+        vertex.x() /= vertex.w();
+        vertex.y() /= vertex.w();
+        vertex.z() /= vertex.w();
+        vertex = randomDisturbance(vertex);
         normal = transformation * normal;
         gp_Pnt P(vertex[0], vertex[1], vertex[2]);
         gp_Pnt N(normal[0], normal[1], normal[2]);
@@ -82,6 +87,16 @@ void generateModel(int n)
     writer.Write("Output.stp");
 }
 
+Eigen::Vector4d randomDisturbance(const Eigen::Vector4d v)
+{
+    const double disturbance = 0.1;
+    return Eigen::Vector4d(
+        v.x() + (realDistribution(generator) - 0.5) * disturbance,
+        v.y() + (realDistribution(generator) - 0.5) * disturbance,
+        v.z() + (realDistribution(generator) - 0.5) * disturbance,
+        1.0);
+}
+
 Eigen::Matrix4d randomTransformation()
 { // translation in y, no initial rotation
     double dx = 0;
@@ -89,8 +104,8 @@ Eigen::Matrix4d randomTransformation()
     double dz = 2.0;
     Eigen::Transform<double, 3, Eigen::Affine> transformation;
     transformation = Eigen::Translation<double, 3>(Eigen::Vector3d(dx, dy, dz));
-    dx = 0.0 * M_PI; //realDistribution(generator) * M_PI;
-    dy = 0.05 * M_PI;
+    dx = 0.05 * M_PI; //realDistribution(generator) * M_PI;
+    dy = 0.0 * M_PI;
     dz = 0.0 * M_PI; //realDistribution(generator) * M_PI;
     transformation.rotate(Eigen::AngleAxis<double>(dx, Eigen::Vector3d::UnitX()));
     transformation.rotate(Eigen::AngleAxis<double>(dy, Eigen::Vector3d::UnitY()));
