@@ -24,11 +24,6 @@ MESSAGE("OCC-Lib-Dir-Dir: ${OpenCASCADE_LIBRARY_DIR}")
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
-find_package(PCL 1.3 REQUIRED COMPONENTS common io filters sample_consensus segmentation search kdtree features surface octree registration recognition geometry keypoints ml visualization)
-include_directories(${PCL_INCLUDE_DIRS})
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
-
 set(PROJECT_SOURCES
         src/main.cpp
         src/ICP.cpp
@@ -46,4 +41,4 @@ add_executable(cadcam ${PROJECT_SOURCES})
 target_link_libraries(cadcam Eigen3::Eigen ${CASCADE_LIBS})
 
 add_executable(pcgen src/pcgen.cpp src/cxxopts.h)
-target_link_libraries(pcgen Eigen3::Eigen ${CASCADE_LIBS} ${PCL_LIBRARIES})
+target_link_libraries(pcgen Eigen3::Eigen ${CASCADE_LIBS})

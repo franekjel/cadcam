@@ -13,22 +13,16 @@
 #include <TopoDS_Compound.hxx>
 #include <TopoDS_Face.hxx>
 
-#include <pcl/io/obj_io.h>
-#include <pcl/point_cloud.h>
-
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/io/vtk_lib_io.h>
-#include <pcl/common/transforms.h>
-#include <vtkVersion.h>
-#include <vtkTriangle.h>
-#include <vtkTriangleFilter.h>
-#include <vtkPolyDataMapper.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/console/print.h>
 #include <TopoDS_Edge.hxx>
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <STEPControl_StepModelType.hxx>
 #include <STEPControl_Writer.hxx>
+
+double Area(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, const Eigen::Vector3d& p3) {
+    Eigen::Vector3d v12 = p1 - p2;
+    Eigen::Vector3d v13 = p1 - p3;
+    return 0.5 * v12.cross(v13).norm();
+}
 
 inline double uniform_deviate (int seed)
 {
@@ -36,13 +30,13 @@ inline double uniform_deviate (int seed)
     return ran;
 }
 
-inline void randomPointTriangle (float a1, float a2, float a3, float b1, float b2, float b3, float c1, float c2, float c3, Eigen::Vector4f& p)
+inline void randomPointTriangle (double a1, double a2, double a3, double b1, double b2, double b3, double c1, double c2, double c3, Eigen::Vector3d& p)
 {
-    float r1 = static_cast<float> (uniform_deviate (rand ()));
-    float r2 = static_cast<float> (uniform_deviate (rand ()));
-    float r1sqr = std::sqrt (r1);
-    float OneMinR1Sqr = (1 - r1sqr);
-    float OneMinR2 = (1 - r2);
+    double r1 = static_cast<double> (uniform_deviate (rand ()));
+    double r2 = static_cast<double> (uniform_deviate (rand ()));
+    double r1sqr = std::sqrt (r1);
+    double OneMinR1Sqr = (1 - r1sqr);
+    double OneMinR2 = (1 - r2);
     a1 *= OneMinR1Sqr;
     a2 *= OneMinR1Sqr;
     a3 *= OneMinR1Sqr;
@@ -55,77 +49,54 @@ inline void randomPointTriangle (float a1, float a2, float a3, float b1, float b
     p[0] = c1;
     p[1] = c2;
     p[2] = c3;
-    p[3] = 0;
 }
 
-inline void randPSurface (vtkPolyData * polydata, std::vector<double> * cumulativeAreas, double totalArea, Eigen::Vector4f& p, bool calcNormal, Eigen::Vector3f& n)
+inline void randPSurface (const std::vector<Eigen::Vector3d>& vertices, const std::vector<Eigen::Vector3i>& indices, std::vector<double> * cumulativeAreas, double totalArea, Eigen::Vector3d& p, Eigen::Vector3d& n)
 {
-    float r = static_cast<float> (uniform_deviate (rand ()) * totalArea);
+    auto r = static_cast<double> (uniform_deviate (rand ()) * totalArea);
 
-    std::vector<double>::iterator low = std::lower_bound (cumulativeAreas->begin (), cumulativeAreas->end (), r);
-    vtkIdType el = vtkIdType (low - cumulativeAreas->begin ());
+    auto low = std::lower_bound (cumulativeAreas->begin (), cumulativeAreas->end (), r);
+    long idx = low - cumulativeAreas->begin();
 
-    double A[3], B[3], C[3];
-    vtkIdType npts = 0;
-    vtkIdType *ptIds = nullptr;
-    polydata->GetCellPoints (el, npts, ptIds);
-    polydata->GetPoint (ptIds[0], A);
-    polydata->GetPoint (ptIds[1], B);
-    polydata->GetPoint (ptIds[2], C);
-    if (calcNormal)
-    {
-        // OBJ: Vertices are stored in a counter-clockwise order by default
-        Eigen::Vector3f v1 = Eigen::Vector3f (A[0], A[1], A[2]) - Eigen::Vector3f (C[0], C[1], C[2]);
-        Eigen::Vector3f v2 = Eigen::Vector3f (B[0], B[1], B[2]) - Eigen::Vector3f (C[0], C[1], C[2]);
-        n = v1.cross (v2);
-        n.normalize ();
-    }
-    randomPointTriangle (float (A[0]), float (A[1]), float (A[2]),
-                         float (B[0]), float (B[1]), float (B[2]),
-                         float (C[0]), float (C[1]), float (C[2]), p);
+    Eigen::Vector3d A = vertices[indices[idx][0]];
+    Eigen::Vector3d B = vertices[indices[idx][1]];
+    Eigen::Vector3d C = vertices[indices[idx][2]];
+
+    // OBJ: Vertices are stored in a counter-clockwise order by default
+    Eigen::Vector3d v1 = A - C;
+    Eigen::Vector3d v2 = B - C;
+    n = v1.cross(v2);
+    n.normalize();
+
+    randomPointTriangle (A[0], A[1], A[2],B[0], B[1], B[2],C[0], C[1], C[2], p);
 }
 
-void uniform_sampling (vtkSmartPointer<vtkPolyData> polydata, size_t n_samples, bool calc_normal, pcl::PointCloud<pcl::PointNormal> & cloud_out)
-{
-    polydata->BuildCells ();
-    vtkSmartPointer<vtkCellArray> cells = polydata->GetPolys ();
+std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> UniformSampling (const std::vector<Eigen::Vector3d>& vertices, const std::vector<Eigen::Vector3i>& indices, size_t n_samples) {
+    std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> cloud;
 
-    double p1[3], p2[3], p3[3], totalArea = 0;
-    std::vector<double> cumulativeAreas (cells->GetNumberOfCells (), 0);
+    double totalArea = 0;
+    std::vector<double>cumulativeAreas (indices.size(), 0);
     size_t i = 0;
-    vtkIdType npts = 0, *ptIds = nullptr;
-    for (cells->InitTraversal (); cells->GetNextCell (npts, ptIds); i++)
-    {
-        polydata->GetPoint (ptIds[0], p1);
-        polydata->GetPoint (ptIds[1], p2);
-        polydata->GetPoint (ptIds[2], p3);
-        totalArea += vtkTriangle::TriangleArea (p1, p2, p3);
-        cumulativeAreas[i] = totalArea;
+    for (auto& t : indices) {
+        Eigen::Vector3d v1 = vertices[t[0]];
+        Eigen::Vector3d v2 = vertices[t[1]];
+        Eigen::Vector3d v3 = vertices[t[2]];
+        totalArea += Area(v1, v2, v3);
+        cumulativeAreas[i++] = totalArea;
     }
-
-    cloud_out.points.resize (n_samples);
-    cloud_out.width = n_samples;
-    cloud_out.height = 1;
 
     for (i = 0; i < n_samples; i++)
     {
-        Eigen::Vector4f p;
-        Eigen::Vector3f n;
-        randPSurface (polydata, &cumulativeAreas, totalArea, p, calc_normal, n);
-        cloud_out.points[i].x = p[0];
-        cloud_out.points[i].y = p[1];
-        cloud_out.points[i].z = p[2];
-        if (calc_normal)
-        {
-            cloud_out.points[i].normal_x = n[0];
-            cloud_out.points[i].normal_y = n[1];
-            cloud_out.points[i].normal_z = n[2];
-        }
+        Eigen::Vector3d p;
+        Eigen::Vector3d n;
+        randPSurface (vertices, indices, &cumulativeAreas, totalArea, p, n);
+        cloud.emplace_back(p, n);
     }
+
+    return cloud;
 }
 
-std::vector<TopoDS_Shape> ReadShape(const char* filename)
-{
+std::vector<TopoDS_Shape> ReadShape(const char* filename) {
     STEPControl_Reader reader;
     IFSelect_ReturnStatus stat = reader.ReadFile(filename);
     if (stat != IFSelect_RetDone)
@@ -143,8 +114,7 @@ std::vector<TopoDS_Shape> ReadShape(const char* filename)
     return objects;
 }
 
-std::pair<std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3i>> Triangulate(const std::vector<TopoDS_Shape>& parts, double deflection)
-{
+std::pair<std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3i>> Triangulate(const std::vector<TopoDS_Shape>& parts, double deflection) {
     std::vector<Eigen::Vector3d> positions;
     std::vector<Eigen::Vector3i> indexes;
     int idx = 0;
@@ -185,9 +155,9 @@ std::pair<std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3i>> Triangulat
                 positions.emplace_back(v3.X(), v3.Y(), v3.Z());
 
                 if(face.Orientation() == TopAbs_REVERSED) {
-                    indexes.emplace_back(idx + 3, idx + 2, idx + 1);
+                    indexes.emplace_back(idx + 2, idx + 1, idx + 0);
                 } else {
-                    indexes.emplace_back(idx + 1, idx + 2, idx + 3);
+                    indexes.emplace_back(idx + 0, idx + 1, idx + 2);
                 }
 
                 idx += 3;
@@ -198,25 +168,7 @@ std::pair<std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3i>> Triangulat
     return std::pair(positions, indexes);
 }
 
-void WriteTempObjFile(
-        const std::vector<Eigen::Vector3d>& vertices,
-        const std::vector<Eigen::Vector3i>& indices,
-        const std::string& filename = "temp.obj") {
-    std::ofstream file;
-    file.open(filename, std::ios::trunc);
-
-    for (auto vertex : vertices) {
-        file << "v " << vertex[0] << " " << vertex[1] << " " << vertex[2] << std::endl;
-    }
-
-    for (auto index : indices) {
-        file << "f " << index[0] << " " << index[1] << " " << index[2] << std::endl;
-    }
-
-    file.close();
-}
-
-Eigen::Matrix4d buildTransformation(double tx, double ty, double tz, double rx, double ry, double rz){
+Eigen::Matrix4d buildTransformation(double tx, double ty, double tz, double rx, double ry, double rz) {
     Eigen::Transform<double, 3, Eigen::Affine> transformation;
     transformation = Eigen::Translation<double, 3>(Eigen::Vector3d(tx, ty, tz));
     rx *= M_PI / 180.0;
@@ -228,14 +180,14 @@ Eigen::Matrix4d buildTransformation(double tx, double ty, double tz, double rx, 
     return transformation.matrix();
 }
 
-void writePointCloud(const std::string& output, const pcl::PointCloud<pcl::PointNormal>::Ptr& cloud, const Eigen::Matrix4d& transformation) {
+void writePointCloud(const std::string& output, const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& cloud, const Eigen::Matrix4d& transformation) {
     TopoDS_Compound source;
     TopoDS_Builder builder;
     builder.MakeCompound(source);
 
-    for (auto & point : cloud->points) {
-        Eigen::Vector4d vertex = {point.x, point.y, point.z, 1};
-        Eigen::Vector4d normal = {point.normal_x, point.normal_y, point.normal_z, 0};
+    for (auto & point : cloud) {
+        Eigen::Vector4d vertex = {point.first[0], point.first[1], point.first[2], 1};
+        Eigen::Vector4d normal = {point.second[0], point.second[1], point.second[2], 0};
         vertex = transformation * vertex;
         normal = transformation * normal;
         gp_Pnt P(vertex[0], vertex[1], vertex[2]);
@@ -283,26 +235,10 @@ int main(int argc, char* argv[]) {
         double ry = result["Y"].as<double>();
         double rz = result["Z"].as<double>();
 
-        pcl::PointCloud<pcl::PointNormal>::Ptr cloud(new pcl::PointCloud<pcl::PointNormal>);
-        pcl::PolygonMesh::Ptr mesh(new pcl::PolygonMesh);
-        vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New ();
-
         auto step = ReadShape(input.c_str());
         auto [vertices, indices] = Triangulate(step, d);
-        WriteTempObjFile(vertices, indices);
-        pcl::io::loadOBJFile("temp.obj", *mesh);
-        pcl::io::mesh2vtk(*mesh, polydata);
 
-        vtkSmartPointer<vtkTriangleFilter> triangleFilter = vtkSmartPointer<vtkTriangleFilter>::New();
-        triangleFilter -> SetInputData(polydata);
-        triangleFilter -> Update();
-
-        vtkSmartPointer<vtkPolyDataMapper> triangleMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-        triangleMapper -> SetInputConnection (triangleFilter -> GetOutputPort());
-        triangleMapper -> Update();
-        polydata = triangleMapper -> GetInput();
-
-        uniform_sampling(polydata, n, true, *cloud);
+        auto cloud = UniformSampling(vertices, indices, n);
         auto transformation = buildTransformation(tx, ty, tz, rx, ry, rz);
 
         writePointCloud(output, cloud, transformation);
