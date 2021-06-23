@@ -170,6 +170,7 @@ std::pair<Eigen::Matrix3Xf, Eigen::Matrix3Xf> ICP(const std::vector<TopoDS_Shape
         file << v.x() << " " << v.y() << " " << v.z() << " ";
 
         double angle = sqrt(abs(g[3]) * abs(g[3]) + abs(g[4]) * abs(g[4]) + abs(g[5]) * abs(g[5]));
+        angle = std::min(angle, 0.02);
         auto axis = Eigen::Vector3d(g[3], g[4], g[5]).normalized();
         transformation = Eigen::AngleAxis(angle, axis);
         rotation *= transformation.matrix();

@@ -117,7 +117,7 @@ void OpenGLWindow::initializeGL()
 
 void OpenGLWindow::resizeGL(int w, int h)
 {
-    m_proj = PerspectiveProjection(float(h) / float(w), M_PI / 2.0f, 50.0f, 0.01f);
+    m_proj = PerspectiveProjection(float(h) / float(w), M_PI / 2.0f, 200.0f, 0.01f);
 
     program.bind();
     program.setUniformValue(u_proj, m_proj);
